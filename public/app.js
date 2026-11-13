@@ -284,7 +284,56 @@ async function cardHealth() {
   } catch (e) { fail("health", "수집 상태", e); }
 }
 
+function pwBar(segs, need) {
+  // segs: [{mw, kind}] kind: build|commit|commitC|plan. 필요량 대비 선형.
+  const W = 300, H = 22, sc = W / Math.max(need, segs.reduce((a, s) => a + s.mw, 0), 1);
+  const col = {build: "var(--ok)", commit: "var(--accent)", commitC: "url(#pwh)", plan: "var(--accent-soft)"};
+  let x = 0, r = "";
+  segs.forEach(s => { if (!s.mw) return; r += `<rect x="${(x * sc).toFixed(1)}" y="3" width="${Math.max(1, s.mw * sc).toFixed(1)}" height="16" fill="${col[s.kind]}" stroke="var(--surface)"/>`; x += s.mw; });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" aria-hidden="true"><defs><pattern id="pwh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--surface)"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--accent)" stroke-width="2.5"/></pattern></defs><rect x="0.5" y="3" width="${W - 1}" height="16" rx="3" fill="var(--sunk)" stroke="var(--line)" stroke-dasharray="3 3"/>${r}</svg>`;
+}
+const gwf = mw => mw >= 1000 ? (mw / 1000).toFixed(mw % 1000 ? 1 : 0) + "GW" : Math.round(mw) + "MW";
+async function cardPower() {
+  try {
+    const [P, R] = await Promise.all([get(`${MEGA}/data/power.json`), get(`${MEGA}/data/aidc_registry.json`)]);
+    const strong = g => g === "A" || g === "B";
+    const ORDER = ["need", "plan", "commit", "build", "live"];
+    const segsOf = units => {
+      const sum = f => units.filter(f).reduce((a, u) => a + u.mw, 0);
+      const ge = lv => u => ORDER.indexOf(u.level) >= ORDER.indexOf(lv);
+      return [{kind: "build", mw: sum(u => ge("build")(u) && strong(u.grade))},
+        {kind: "commit", mw: sum(u => u.level === "commit" && strong(u.grade))},
+        {kind: "commitC", mw: sum(u => ge("commit")(u) && !strong(u.grade))},
+        {kind: "plan", mw: sum(u => u.level === "plan")}];
+    };
+    const S = P.sectors.swfab;
+    const sw = S.units.map(u => ({mw: u.mw, level: u.level, grade: u.level_grade}));
+    const A = P.sectors.aidc, ov = A.overrides || [];
+    const ai = [];
+    R.projects.filter(p => String(p.program || "").startsWith("1단계")).forEach(p => p.units.forEach(u => {
+      if (!u.mw) return;
+      const pw = u.stages && u.stages.power || {};
+      const o = ov.find(x => x.project === p.id && x.unit === u.label);
+      ai.push(o ? {mw: o.mw || u.mw, level: o.level, grade: o.grade} : {mw: u.mw, level: pw.s === "rec" ? "commit" : pw.s === "claim" ? "plan" : "need", grade: pw.s === "rec" ? "B" : "C"});
+    }));
+    const row = (name, sub, units, need, link) => {
+      const sg = segsOf(units), c = sg[0].mw + sg[1].mw, b = sg[0].mw;
+      const pc = v => (v / need * 100).toFixed(v && v / need < 0.1 ? 1 : 0) + "%";
+      return `<div class="pw-row"><div class="lab"><b><a href="${link}" style="color:inherit">${esc(name)}</a></b><span>필요 ${gwf(need)} · ${esc(sub)}</span></div>
+        <div>${pwBar(sg, need)}</div>
+        <div class="nums">공급 약속(기록) <b>${gwf(c)} · ${pc(c)}</b> · 설비 착공 <b>${gwf(b)}</b>${sg[2].mw ? ` · 보도만 ${gwf(sg[2].mw)}` : ""} · 계획 ${gwf(sg[3].mw)}</div></div>`;
+    };
+    body("power").innerHTML = `
+      ${row("반도체 메가팹", "팹 4기", sw, S.need_mw, MEGA + "/swfab.html#power-ready")}
+      ${row("AI 데이터센터", "1단계 목표", ai, A.need_mw, MEGA + "/aidc.html#power-ready")}
+      <div class="pw-row"><div class="lab"><b><a href="${MEGA}/physai.html#power-ready" style="color:inherit">피지컬 AI</a></b><span>필요량 미공개</span></div><div class="read" style="font-size:12.5px">거점별 전력 수요가 발표되지 않아 막대를 그리지 않습니다. 새만금은 송전망 문제로 데이터센터가 멈춘 전례가 있어 감시 중입니다.</div></div>
+      <p class="pw-leg"><span><i style="background:var(--ok)"></i>설비 착공</span><span><i style="background:var(--accent)"></i>공급 약속(기록)</span><span><i style="background:repeating-linear-gradient(45deg,var(--accent) 0 2px,var(--surface) 2px 4px)"></i>약속(보도만)</span><span><i style="background:var(--accent-soft)"></i>공급 계획</span><span><i style="background:var(--sunk);border:1px dashed var(--line)"></i>필요량만</span></p>
+      <p class="read">입지별 계통 여유 용량은 공개 자료가 없어, 물리적 부족량이 아니라 공개된 이정표 기준의 확보 정도입니다.</p>
+      ${metaLine([`기준일 ${esc(P.asof)}`, `AIDC 등록부 ${esc(R.asof)}`])}`;
+  } catch (e) { fail("power", "전력 준비성 자료", e); }
+}
+
 (async function main() {
   $("#loaded").textContent = `이 화면을 연 시각 ${new Date().toLocaleString("ko-KR", {timeZone: "Asia/Seoul"})} (KST). 자료는 세 사이트에서 직접 읽습니다.`;
-  await Promise.all([cardSwfab(), cardMem(), cardCapex(), cardAidc(), cardWater(), cardPhysai(), cardEvents(), cardHealth()]);
+  await Promise.all([cardSwfab(), cardMem(), cardCapex(), cardAidc(), cardWater(), cardPhysai(), cardEvents(), cardHealth(), cardPower()]);
 })();
