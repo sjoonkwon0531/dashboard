@@ -316,19 +316,21 @@ async function cardPower() {
       const o = ov.find(x => x.project === p.id && x.unit === u.label);
       ai.push(o ? {mw: o.mw || u.mw, level: o.level, grade: o.grade} : {mw: u.mw, level: pw.s === "rec" ? "commit" : pw.s === "claim" ? "plan" : "need", grade: pw.s === "rec" ? "B" : "C"});
     }));
-    const row = (name, sub, units, need, link) => {
+    const K = (P.kepco_margin && P.kepco_margin.rows) || [];
+    const kTxt = sec => { const r = K.filter(x => x.sector === sec); return r.length ? ` · 한전 공개 변전소 여유(참고) ${r.map(x => `${esc(x.substation)} <b>${x.margin_mw.toLocaleString("ko-KR")}MW</b>`).join(", ")}` : ""; };
+    const row = (name, sub, units, need, link, sec) => {
       const sg = segsOf(units), c = sg[0].mw + sg[1].mw, b = sg[0].mw;
       const pc = v => (v / need * 100).toFixed(v && v / need < 0.1 ? 1 : 0) + "%";
       return `<div class="pw-row"><div class="lab"><b><a href="${link}" style="color:inherit">${esc(name)}</a></b><span>필요 ${gwf(need)} · ${esc(sub)}</span></div>
         <div>${pwBar(sg, need)}</div>
-        <div class="nums">공급 약속(기록) <b>${gwf(c)} · ${pc(c)}</b> · 설비 착공 <b>${gwf(b)}</b>${sg[2].mw ? ` · 보도만 ${gwf(sg[2].mw)}` : ""} · 계획 ${gwf(sg[3].mw)}</div></div>`;
+        <div class="nums">공급 약속(기록) <b>${gwf(c)} · ${pc(c)}</b> · 설비 착공 <b>${gwf(b)}</b>${sg[2].mw ? ` · 보도만 ${gwf(sg[2].mw)}` : ""} · 계획 ${gwf(sg[3].mw)}${kTxt(sec)}</div></div>`;
     };
     body("power").innerHTML = `
-      ${row("반도체 메가팹", "팹 4기", sw, S.need_mw, MEGA + "/swfab.html#power-ready")}
-      ${row("AI 데이터센터", "1단계 목표", ai, A.need_mw, MEGA + "/aidc.html#power-ready")}
+      ${row("반도체 메가팹", "팹 4기", sw, S.need_mw, MEGA + "/swfab.html#power-ready", "swfab")}
+      ${row("AI 데이터센터", "1단계 목표", ai, A.need_mw, MEGA + "/aidc.html#power-ready", "aidc")}
       <div class="pw-row"><div class="lab"><b><a href="${MEGA}/physai.html#power-ready" style="color:inherit">피지컬 AI</a></b><span>필요량 미공개</span></div><div class="read" style="font-size:12.5px">거점별 전력 수요가 발표되지 않아 막대를 그리지 않습니다. 새만금은 송전망 문제로 데이터센터가 멈춘 전례가 있어 감시 중입니다.</div></div>
       <p class="pw-leg"><span><i style="background:var(--ok)"></i>설비 착공</span><span><i style="background:var(--accent)"></i>공급 약속(기록)</span><span><i style="background:repeating-linear-gradient(45deg,var(--accent) 0 2px,var(--surface) 2px 4px)"></i>약속(보도만)</span><span><i style="background:var(--accent-soft)"></i>공급 계획</span><span><i style="background:var(--sunk);border:1px dashed var(--line)"></i>필요량만</span></p>
-      <p class="read">공개된 이정표(협약·계통영향평가·착공) 기준의 확보 정도이며, 물리적 부족량이 아닙니다. 한전의 변전소 여유정보는 참고자료라 아직 반영하지 않았습니다.</p>
+      <p class="read">공개된 이정표(협약·계통영향평가·착공) 기준의 확보 정도이며, 물리적 부족량이 아닙니다. 한전 변전소 여유는 한전이 공개한 참고자료(345kV 기준)입니다.</p>
       ${metaLine([`기준일 ${esc(P.asof)}`, `AIDC 등록부 ${esc(R.asof)}`])}`;
   } catch (e) { fail("power", "전력 준비성 자료", e); }
 }
