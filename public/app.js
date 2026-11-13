@@ -285,27 +285,28 @@ async function cardHealth() {
 }
 
 function pwBar(segs, need) {
-  // segs: [{mw, kind}] kind: build|commit|commitC|plan. 필요량 대비 선형.
+  // segs: [{mw, kind}] kind: live|build|confirm|agree|plan, hatch=true면 보도 1곳(C). 필요량 대비 선형.
   const W = 300, H = 22, sc = W / Math.max(need, segs.reduce((a, s) => a + s.mw, 0), 1);
-  const col = {build: "var(--ok)", commit: "var(--accent)", commitC: "url(#pwh)", plan: "var(--accent-soft)"};
+  const F = {live: ["var(--ok)", 1], build: ["var(--ok)", 0.55], confirm: ["var(--accent)", 1], agree: ["var(--accent)", 0.5], plan: ["var(--accent)", 0.18]};
   let x = 0, r = "";
-  segs.forEach(s => { if (!s.mw) return; r += `<rect x="${(x * sc).toFixed(1)}" y="3" width="${Math.max(1, s.mw * sc).toFixed(1)}" height="16" fill="${col[s.kind]}" stroke="var(--surface)"/>`; x += s.mw; });
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" aria-hidden="true"><defs><pattern id="pwh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--surface)"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--accent)" stroke-width="2.5"/></pattern></defs><rect x="0.5" y="3" width="${W - 1}" height="16" rx="3" fill="var(--sunk)" stroke="var(--line)" stroke-dasharray="3 3"/>${r}</svg>`;
+  segs.forEach(s => { if (!s.mw) return; const [c, op] = F[s.kind];
+    r += `<rect x="${(x * sc).toFixed(1)}" y="3" width="${Math.max(1, s.mw * sc).toFixed(1)}" height="16" ${s.hatch ? `fill="url(#pwh-${s.kind})"` : `fill="${c}" fill-opacity="${op}"`} stroke="var(--surface)"/>`; x += s.mw; });
+  const pats = Object.entries(F).map(([k, [c]]) => `<pattern id="pwh-${k}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--surface)"/><line x1="0" y1="0" x2="0" y2="5" stroke="${c}" stroke-width="2.5"/></pattern>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" aria-hidden="true"><defs>${pats}</defs><rect x="0.5" y="3" width="${W - 1}" height="16" rx="3" fill="var(--sunk)" stroke="var(--line)" stroke-dasharray="3 3"/>${r}</svg>`;
 }
 const gwf = mw => mw >= 1000 ? (mw / 1000).toFixed(mw % 1000 ? 1 : 0) + "GW" : Math.round(mw) + "MW";
 async function cardPower() {
   try {
     const [P, R] = await Promise.all([get(`${MEGA}/data/power.json`), get(`${MEGA}/data/aidc_registry.json`)]);
     const strong = g => g === "A" || g === "B";
-    const ORDER = ["need", "plan", "commit", "build", "live"];
+    const ORDER = ["need", "plan", "agree", "confirm", "build", "live"];
     const segsOf = units => {
-      const sum = f => units.filter(f).reduce((a, u) => a + u.mw, 0);
-      const ge = lv => u => ORDER.indexOf(u.level) >= ORDER.indexOf(lv);
-      return [{kind: "build", mw: sum(u => ge("build")(u) && strong(u.grade))},
-        {kind: "commit", mw: sum(u => u.level === "commit" && strong(u.grade))},
-        {kind: "commitC", mw: sum(u => ge("commit")(u) && !strong(u.grade))},
-        {kind: "plan", mw: sum(u => u.level === "plan")}];
+      const out = [];
+      ["live", "build", "confirm", "agree"].forEach(k => [false, true].forEach(h => out.push({kind: k, hatch: h, mw: units.filter(u => u.level === k && strong(u.grade) === !h).reduce((a, u) => a + u.mw, 0)})));
+      out.push({kind: "plan", hatch: false, mw: units.filter(u => u.level === "plan").reduce((a, u) => a + u.mw, 0)});
+      return out;
     };
+    const geRec = (units, lv) => units.filter(u => ORDER.indexOf(u.level) >= ORDER.indexOf(lv) && strong(u.grade)).reduce((a, u) => a + u.mw, 0);
     const S = P.sectors.swfab;
     const sw = S.units.map(u => ({mw: u.mw, level: u.level, grade: u.level_grade}));
     const A = P.sectors.aidc, ov = A.overrides || [];
@@ -314,23 +315,23 @@ async function cardPower() {
       if (!u.mw) return;
       const pw = u.stages && u.stages.power || {};
       const o = ov.find(x => x.project === p.id && x.unit === u.label);
-      ai.push(o ? {mw: o.mw || u.mw, level: o.level, grade: o.grade} : {mw: u.mw, level: pw.s === "rec" ? "commit" : pw.s === "claim" ? "plan" : "need", grade: pw.s === "rec" ? "B" : "C"});
+      ai.push(o ? {mw: o.mw || u.mw, level: o.level, grade: o.grade} : {mw: u.mw, level: pw.s === "rec" ? "confirm" : pw.s === "claim" ? "plan" : "need", grade: pw.s === "rec" ? "B" : "C"});
     }));
     const K = (P.kepco_margin && P.kepco_margin.rows) || [];
     const kTxt = sec => { const r = K.filter(x => x.sector === sec); return r.length ? ` · 한전 공개 변전소 여유(참고) ${r.map(x => `${esc(x.substation)} <b>${x.margin_mw.toLocaleString("ko-KR")}MW</b>`).join(", ")}` : ""; };
     const row = (name, sub, units, need, link, sec) => {
-      const sg = segsOf(units), c = sg[0].mw + sg[1].mw, b = sg[0].mw;
       const pc = v => (v / need * 100).toFixed(v && v / need < 0.1 ? 1 : 0) + "%";
+      const ag = geRec(units, "agree"), cf = geRec(units, "confirm"), bd = geRec(units, "build"), lv = geRec(units, "live");
       return `<div class="pw-row"><div class="lab"><b><a href="${link}" style="color:inherit">${esc(name)}</a></b><span>필요 ${gwf(need)} · ${esc(sub)}</span></div>
-        <div>${pwBar(sg, need)}</div>
-        <div class="nums">공급 약속(기록) <b>${gwf(c)} · ${pc(c)}</b> · 설비 착공 <b>${gwf(b)}</b>${sg[2].mw ? ` · 보도만 ${gwf(sg[2].mw)}` : ""} · 계획 ${gwf(sg[3].mw)}${kTxt(sec)}</div></div>`;
+        <div>${pwBar(segsOf(units), need)}</div>
+        <div class="nums">공급 확정 <b>${gwf(cf)} · ${pc(cf)}</b> · 설비 착공 <b>${gwf(bd)}</b> · 공급 완료 <b>${gwf(lv)}</b> · 협약 이상 ${gwf(ag)}${kTxt(sec)}</div></div>`;
     };
     body("power").innerHTML = `
       ${row("반도체 메가팹", "팹 4기", sw, S.need_mw, MEGA + "/swfab.html#power-ready", "swfab")}
       ${row("AI 데이터센터", "1단계 목표", ai, A.need_mw, MEGA + "/aidc.html#power-ready", "aidc")}
       <div class="pw-row"><div class="lab"><b><a href="${MEGA}/physai.html#power-ready" style="color:inherit">피지컬 AI</a></b><span>필요량 미공개</span></div><div class="read" style="font-size:12.5px">거점별 전력 수요가 발표되지 않아 막대를 그리지 않습니다. 새만금은 송전망 문제로 데이터센터가 멈춘 전례가 있어 감시 중입니다.</div></div>
-      <p class="pw-leg"><span><i style="background:var(--ok)"></i>설비 착공</span><span><i style="background:var(--accent)"></i>공급 약속(기록)</span><span><i style="background:repeating-linear-gradient(45deg,var(--accent) 0 2px,var(--surface) 2px 4px)"></i>약속(보도만)</span><span><i style="background:var(--accent-soft)"></i>공급 계획</span><span><i style="background:var(--sunk);border:1px dashed var(--line)"></i>필요량만</span></p>
-      <p class="read">공개된 이정표(협약·계통영향평가·착공) 기준의 확보 정도이며, 물리적 부족량이 아닙니다. 한전 변전소 여유는 한전이 공개한 참고자료(345kV 기준)입니다.</p>
+      <p class="pw-leg"><span><i style="background:var(--ok)"></i>공급 완료</span><span><i style="background:var(--ok);opacity:.55"></i>설비 착공</span><span><i style="background:var(--accent)"></i>공급 확정</span><span><i style="background:var(--accent);opacity:.5"></i>공급 협약</span><span><i style="background:repeating-linear-gradient(45deg,var(--accent) 0 2px,var(--surface) 2px 4px)"></i>보도 1곳뿐</span><span><i style="background:var(--accent);opacity:.18"></i>공급 계획</span><span><i style="background:var(--sunk);border:1px dashed var(--line)"></i>필요량만</span></p>
+      <p class="read">공개된 이정표(협약 → 확정 → 착공 → 완료) 기준의 확보 정도이며, 물리적 부족량이 아닙니다. 한전 변전소 여유는 한전이 공개한 참고자료(345kV 기준)입니다.</p>
       ${metaLine([`기준일 ${esc(P.asof)}`, `AIDC 등록부 ${esc(R.asof)}`])}`;
   } catch (e) { fail("power", "전력 준비성 자료", e); }
 }
