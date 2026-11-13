@@ -1,0 +1,10 @@
+{
+  // dashboard.sjoonkwon.com: 세 공개 모니터 통합 현황판. 정적 페이지, Cloudflare Workers 정적 자산으로 배포.
+  "name": "dashboard-sjoonkwon",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
+  }
+}
