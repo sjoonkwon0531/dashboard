@@ -328,7 +328,7 @@ async function cardPower() {
       ${row("AI 데이터센터", "1단계 목표", ai, A.need_mw, MEGA + "/aidc.html#power-ready")}
       <div class="pw-row"><div class="lab"><b><a href="${MEGA}/physai.html#power-ready" style="color:inherit">피지컬 AI</a></b><span>필요량 미공개</span></div><div class="read" style="font-size:12.5px">거점별 전력 수요가 발표되지 않아 막대를 그리지 않습니다. 새만금은 송전망 문제로 데이터센터가 멈춘 전례가 있어 감시 중입니다.</div></div>
       <p class="pw-leg"><span><i style="background:var(--ok)"></i>설비 착공</span><span><i style="background:var(--accent)"></i>공급 약속(기록)</span><span><i style="background:repeating-linear-gradient(45deg,var(--accent) 0 2px,var(--surface) 2px 4px)"></i>약속(보도만)</span><span><i style="background:var(--accent-soft)"></i>공급 계획</span><span><i style="background:var(--sunk);border:1px dashed var(--line)"></i>필요량만</span></p>
-      <p class="read">입지별 계통 여유 용량은 공개 자료가 없어, 물리적 부족량이 아니라 공개된 이정표 기준의 확보 정도입니다.</p>
+      <p class="read">공개된 이정표(협약·계통영향평가·착공) 기준의 확보 정도이며, 물리적 부족량이 아닙니다. 한전의 변전소 여유정보는 참고자료라 아직 반영하지 않았습니다.</p>
       ${metaLine([`기준일 ${esc(P.asof)}`, `AIDC 등록부 ${esc(R.asof)}`])}`;
   } catch (e) { fail("power", "전력 준비성 자료", e); }
 }
