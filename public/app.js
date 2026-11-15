@@ -241,9 +241,23 @@ async function cardWater() {
   } catch (e) { fail("water", "저수율 자료", e); }
 }
 
+// 진도 판정: 원 사이트 assets/pace.js와 같은 규칙(출발점→목표 직선 경로 대비 최근 공개치)
+function paceJudge(it) {
+  if (it.color === false || !it.target) return {s: "rec"};
+  if (!it.base || !it.latest) return {s: "idle"};
+  const D = 86400000, t0 = Date.parse(it.base.date), t1 = Date.parse(it.target.date), tl = Date.parse(it.latest.date);
+  if (Date.parse(kstDate()) - tl > 365 * D) return {s: "idle"};
+  const path = it.base.v + (it.target.v - it.base.v) * Math.min(1, Math.max(0, (tl - t0) / (t1 - t0)));
+  const r = path > 0 ? it.latest.v / path : 1;
+  return {s: r >= 0.9 ? "ok" : r >= 0.5 ? "warn" : "bad", r};
+}
+
 async function cardPhysai() {
   try {
-    const [pr, b] = await Promise.all([get(`${MEGA}/data/feeds/procure.json`), get(`${MEGA}/data/feeds/bids.json`).catch(() => null)]);
+    const [pr, b, ph] = await Promise.all([get(`${MEGA}/data/feeds/procure.json`), get(`${MEGA}/data/feeds/bids.json`).catch(() => null), get(`${MEGA}/data/physai.json`).catch(() => null)]);
+    const FL = {...LBL, idle: "미확정"};
+    const pace = ph && ph.pace ? ph.pace.items.map(it => ({it, j: paceJudge(it)})).filter(x => x.j.s !== "rec") : [];
+    const paceHtml = pace.length ? `<div class="tally" aria-label="목표 진도 판정">${pace.map(({it, j}) => `<a class="chip ${j.s}" href="${MEGA}/physai.html#pace" style="text-decoration:none" title="${esc(j.r != null ? "경로 대비 " + Math.round(j.r * 100) + "%" : "공개치 없음")}">${esc(it.label)} ${FL[j.s]}</a>`).join("")}</div>` : "";
     const S = (pr.summary || []).slice(-12);
     const thisMonth = kstDate().slice(0, 7);
     const yr = kstDate().slice(0, 4);
@@ -255,7 +269,7 @@ async function cardPhysai() {
       const read = cur.reduce((a, s) => a + (s.read || 0), 0), own = cur.reduce((a, s) => a + (s.data_own || 0), 0);
       if (read) clause = `입찰 첨부를 읽은 <b class="num">${fmt(read)}</b>건 가운데 데이터 소유·반출 제한 문구가 걸린 것은 <b class="num">${fmt(own)}</b>건(${(own / read * 100).toFixed(1)}%)입니다. 낱말로 찾은 값이라 운영자 검토 전입니다.`;
     }
-    body("physai").innerHTML = `
+    body("physai").innerHTML = `${paceHtml}
       <div><div class="big num">${fmt(nY)}건</div><div class="sub">${esc(yr)}년 나라장터 로봇 관련 계약 · ${fmt(aY, 0)}억원</div></div>
       ${bars(S.map(s => s.n), S.map(s => s.month.slice(2).replace("-", ".")), {unit: "건", partialLast: S.length && S[S.length - 1].month === thisMonth})}
       <p class="read">월별 계약 건수(계약명 낱말 기준)입니다. 이번 달 막대는 아직 집계 중입니다. ${clause}</p>
