@@ -82,6 +82,18 @@ svg text{font-family:var(--f-body)}
 .chip{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--sunk);color:var(--ink-2)}
 .chip.bad{background:var(--bad-soft);color:var(--bad)}.chip.warn{background:var(--warn-soft);color:var(--warn)}.chip.ok{background:var(--ok-soft);color:var(--ok)}.chip.idle{background:var(--idle-soft);color:var(--idle)}
 
+.fm{display:flex;flex-direction:column;gap:6px}
+.fm-row{display:grid;grid-template-columns:minmax(96px,1.3fr) repeat(6,minmax(28px,1fr));gap:6px;align-items:center}
+.fm-h span{font-size:11.5px;color:var(--ink-3);text-align:center}
+.fm-nm{text-decoration:none;color:inherit;min-width:0}.fm-nm b{display:block;font-size:13.5px;line-height:1.2}.fm-nm span{font-size:11px;color:var(--ink-3)}
+.fm-c{display:grid;place-items:center;height:34px;border-radius:8px;background:var(--sunk)}
+.fm-c:hover{outline:1px solid var(--line)}
+.fm-c .bulb{width:20px;height:20px;border-radius:50%}
+.fm-c.s-bad .bulb{background:var(--bad);box-shadow:0 0 0 3px var(--bad-soft)}
+.fm-c.s-warn .bulb{background:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}
+.fm-c.s-ok .bulb{background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+.fm-c.s-idle .bulb{border:2.5px dashed var(--idle)}
+
 /* memsim 신호등 */
 .tl-row{display:flex;gap:14px;align-items:center}
 .tl{flex:none;display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:14px;background:var(--ink)}

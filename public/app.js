@@ -106,20 +106,38 @@ function funnel(rows, target) {
 const LBL = {ok: "정상", warn: "주의", bad: "병목", idle: "착수 전"};
 const st = s => LBL[s] ? s : "idle";
 
+const FAB_SITES = [
+  {id: "swfab", name: "서남권", sub: "삼성·SK 팹 4기", data: "/data/swfab.json", page: "/swfab.html"},
+  {id: "yongin-ss", name: "용인 국가산단", sub: "삼성 팹 6기", data: "/data/fab_yongin_ss.json", page: "/yongin-ss.html"},
+  {id: "yongin-sk", name: "용인 일반산단", sub: "SK 팹 4기", data: "/data/fab_yongin_sk.json", page: "/yongin-sk.html"}
+];
+const FAB_COLS = [["site", "부지"], ["admin", "행정"], ["power", "전력"], ["water", "용수"], ["law", "법제"], ["corp", "기업"]];
+
 async function cardSwfab() {
+  const FL = {...LBL, idle: "미확정"};  // 거점 판정에서 회색은 '착수 전'이 아니라 '판정할 근거 부족'
   try {
-    const d = await get(`${MEGA}/data/swfab.json`);
-    const L = d.layers;
+    const all = await Promise.all(FAB_SITES.map(s => get(MEGA + s.data).then(d => ({s, d})).catch(() => ({s, d: null}))));
+    if (!all.some(x => x.d)) throw new Error("자료 없음");
     const cnt = {bad: 0, warn: 0, ok: 0, idle: 0};
-    L.forEach(l => cnt[st(l.status)]++);
-    const lamps = L.map(l => `<a class="lamp s-${st(l.status)}" href="${MEGA}/swfab.html#layer-${esc(l.id)}" title="${esc(l.why)}"><span class="bulb" aria-hidden="true"></span><span><span class="nm">${esc(l.name)}</span><br><span class="st">${LBL[st(l.status)]}</span></span></a>`).join("");
-    const badNames = L.filter(l => st(l.status) === "bad").map(l => l.name);
+    const rows = all.map(({s, d}) => {
+      if (!d) return `<div class="fm-row"><div class="fm-nm"><b>${esc(s.name)}</b><span>읽지 못함</span></div></div>`;
+      const by = Object.fromEntries(d.layers.map(l => [l.id, l]));
+      d.layers.forEach(l => cnt[st(l.status)]++);
+      const cells = FAB_COLS.map(([id, nm]) => { const l = by[id]; const k = l ? st(l.status) : "idle";
+        return `<a class="fm-c s-${k}" href="${MEGA}${s.page}#layer-${id}" title="${esc(nm + " · " + FL[k] + (l ? " · " + l.why : ""))}" aria-label="${esc(s.name + " " + nm + " " + FL[k])}"><span class="bulb" aria-hidden="true"></span></a>`; }).join("");
+      return `<div class="fm-row"><a class="fm-nm" href="${MEGA}${s.page}"><b>${esc(s.name)}</b><span>${esc(s.sub)}</span></a>${cells}</div>`;
+    }).join("");
+    const asof = all.filter(x => x.d).map(x => x.d.meta.asof).sort().pop();
+    const bads = all.filter(x => x.d).flatMap(x => x.d.layers.filter(l => st(l.status) === "bad").map(l => `${x.s.name} ${l.name}`));
     body("swfab").innerHTML = `
-      <div class="tally">${["bad", "warn", "ok", "idle"].filter(k => cnt[k]).map(k => `<span class="chip ${k}">${LBL[k]} ${cnt[k]}</span>`).join("")}</div>
-      <div class="lamps">${lamps}</div>
-      <p class="read">${badNames.length ? `<b>${esc(badNames.join(", "))}</b>이(가) 병목입니다. ` : ""}칸을 누르면 그 층의 근거로 갑니다. 층마다 판정 규칙은 원 페이지의 산출 방법에 있습니다.</p>
-      ${metaLine([`판정 기준일 ${esc(d.meta && d.meta.asof || "–")}`, "규칙 산출값을 운영자가 확인해 게시"])}`;
-  } catch (e) { fail("swfab", "메가팹 판정", e); }
+      <div class="tally">${["bad", "warn", "ok", "idle"].filter(k => cnt[k]).map(k => `<span class="chip ${k}">${FL[k]} ${cnt[k]}</span>`).join("")}</div>
+      <div class="fm" role="table" aria-label="거점별 여섯 층 판정">
+        <div class="fm-row fm-h" role="row"><span></span>${FAB_COLS.map(([, nm]) => `<span>${nm}</span>`).join("")}</div>
+        ${rows}
+      </div>
+      <p class="read">${bads.length ? `<b>${esc(bads.join(", "))}</b>이(가) 병목입니다. ` : ""}칸을 누르면 그 층의 근거로 갑니다. 서남권 용수 층만 규칙 판정이고, 나머지는 운영자 판단입니다. 평택·이천·청주·충남은 판정 없이 <a href="${MEGA}/fab.html#light">팹별 일정</a>만 기록합니다.</p>
+      ${metaLine([`판정 기준일 ${esc(asof || "–")}`, "공개 보도·정부 발표 근거"])}`;
+  } catch (e) { fail("swfab", "반도체 클러스터 판정", e); }
 }
 
 const MIND = [
@@ -308,7 +326,9 @@ async function cardPower() {
     };
     const geRec = (units, lv) => units.filter(u => ORDER.indexOf(u.level) >= ORDER.indexOf(lv) && strong(u.grade)).reduce((a, u) => a + u.mw, 0);
     const S = P.sectors.swfab;
-    const sw = S.units.map(u => ({mw: u.mw, level: u.level, grade: u.level_grade}));
+    const unitsOf = S2 => S2.units.map(u => ({mw: u.mw, level: u.level, grade: u.level_grade}));
+    const sw = unitsOf(S);
+    const YS = P.sectors.yongin_ss, YK = P.sectors.yongin_sk;
     const A = P.sectors.aidc, ov = A.overrides || [];
     const ai = [];
     R.projects.filter(p => String(p.program || "").startsWith("1단계")).forEach(p => p.units.forEach(u => {
@@ -327,7 +347,9 @@ async function cardPower() {
         <div class="nums">공급 확정 <b>${gwf(cf)} · ${pc(cf)}</b> · 설비 착공 <b>${gwf(bd)}</b> · 공급 완료 <b>${gwf(lv)}</b> · 협약 이상 ${gwf(ag)}${kTxt(sec)}</div></div>`;
     };
     body("power").innerHTML = `
-      ${row("반도체 메가팹", "팹 4기", sw, S.need_mw, MEGA + "/swfab.html#power-ready", "swfab")}
+      ${row("서남권 메가팹", "팹 4기", sw, S.need_mw, MEGA + "/swfab.html#power-ready", "swfab")}
+      ${YS ? row("용인 국가산단", "삼성 팹 6기(보도 추산)", unitsOf(YS), YS.need_mw, MEGA + "/yongin-ss.html#power-ready", "yongin_ss") : ""}
+      ${YK ? row("용인 일반산단", "SK 팹 4기", unitsOf(YK), YK.need_mw, MEGA + "/yongin-sk.html#power-ready", "yongin_sk") : ""}
       ${row("AI 데이터센터", "1단계 목표", ai, A.need_mw, MEGA + "/aidc.html#power-ready", "aidc")}
       <div class="pw-row"><div class="lab"><b><a href="${MEGA}/physai.html#power-ready" style="color:inherit">피지컬 AI</a></b><span>필요량 미공개</span></div><div class="read" style="font-size:12.5px">거점별 전력 수요가 발표되지 않아 막대를 그리지 않습니다. 새만금은 송전망 문제로 데이터센터가 멈춘 전례가 있어 감시 중입니다.</div></div>
       <p class="pw-leg"><span><i style="background:var(--ok)"></i>공급 완료</span><span><i style="background:var(--ok);opacity:.55"></i>설비 착공</span><span><i style="background:var(--accent)"></i>공급 확정</span><span><i style="background:var(--accent);opacity:.5"></i>공급 협약</span><span><i style="background:repeating-linear-gradient(45deg,var(--accent) 0 2px,var(--surface) 2px 4px)"></i>보도 1곳뿐</span><span><i style="background:var(--accent);opacity:.18"></i>공급 계획</span><span><i style="background:var(--sunk);border:1px dashed var(--line)"></i>필요량만</span></p>
