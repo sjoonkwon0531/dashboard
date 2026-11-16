@@ -328,6 +328,23 @@ function pwBar(segs, need) {
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" aria-hidden="true"><defs>${pats}</defs><rect x="0.5" y="3" width="${W - 1}" height="16" rx="3" fill="var(--sunk)" stroke="var(--line)" stroke-dasharray="3 3"/>${r}</svg>`;
 }
 const gwf = mw => mw >= 1000 ? (mw / 1000).toFixed(mw % 1000 ? 1 : 0) + "GW" : Math.round(mw) + "MW";
+async function cardLedger() {
+  try {
+    const L = await get(`${MEGA}/v2/data/milestones.json`);
+    const S = L.summary;
+    // 90일 안 목표일은 날짜에 따라 바뀌므로 여기서 센다(기간 표기의 끝 날짜 기준)
+    const end = s => { const [y, m, d] = s.split("-").map(Number); return d ? Date.UTC(y, m - 1, d) : m ? Date.UTC(y, m, 0) : Date.UTC(y, 11, 31); };
+    const now = Date.parse(kstDate());
+    const soon = L.milestones.filter(m => m.target && m.status !== "complete" && end(m.target.date) >= now && end(m.target.date) - now <= 90 * 86400000).length;
+    const overdue = L.milestones.filter(m => m.target && m.status !== "complete" && end(m.target.date) < now).length;
+    const it = [[S.conflicts, "선행 일정과 어긋남", S.conflicts ? "bad" : ""], [overdue, "목표일 지남·미완료", overdue ? "bad" : ""], [S.unbacked, "앞당겼지만 집행 근거 없음", "warn"],
+      [S.later, "기준보다 늦어짐", S.later ? "bad" : ""], [S.earlier, "기준보다 앞당겨짐", ""], [S.open, "목표일 미공개·출처 상충", "idle"], [soon, "90일 안 목표일", ""], [S.complete + "/" + S.milestones, "완료/전체", ""]];
+    body("ledger").innerHTML = `<div class="lg-strip">${it.map(([v, l, c]) => `<span class="${c}"><b class="num">${v}</b>${esc(l)}</span>`).join("")}</div>
+      <p class="read">서남권·용인 두 산단의 이정표를 처음 약속한 날짜(2026-06-29 기준)와 함께 기록한 원장입니다. AIDC·피지컬 AI는 아직 들어오지 않았습니다.</p>
+      ${metaLine([`원장 기준일 ${esc(L.asof)}`, "v2 시험 화면"])}`;
+  } catch (e) { fail("ledger", "일정 원장", e); }
+}
+
 async function cardPower() {
   try {
     const [P, R] = await Promise.all([get(`${MEGA}/data/power.json`), get(`${MEGA}/data/aidc_registry.json`)]);
@@ -375,5 +392,5 @@ async function cardPower() {
 
 (async function main() {
   $("#loaded").textContent = `이 화면을 연 시각 ${new Date().toLocaleString("ko-KR", {timeZone: "Asia/Seoul"})} (KST). 자료는 세 사이트에서 직접 읽습니다.`;
-  await Promise.all([cardSwfab(), cardMem(), cardCapex(), cardAidc(), cardWater(), cardPhysai(), cardEvents(), cardHealth(), cardPower()]);
+  await Promise.all([cardSwfab(), cardMem(), cardCapex(), cardAidc(), cardWater(), cardPhysai(), cardEvents(), cardHealth(), cardPower(), cardLedger()]);
 })();
