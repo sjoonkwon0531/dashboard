@@ -247,7 +247,8 @@ function paceJudge(it) {
   if (!it.base || !it.latest) return {s: "idle"};
   const D = 86400000, t0 = Date.parse(it.base.date), t1 = Date.parse(it.target.date), tl = Date.parse(it.latest.date);
   if (Date.parse(kstDate()) - tl > 365 * D) return {s: "idle"};
-  const path = it.base.v + (it.target.v - it.base.v) * Math.min(1, Math.max(0, (tl - t0) / (t1 - t0)));
+  const now = Date.parse(kstDate()), tc = now - tl > 182 * D ? now : tl;  // 6개월 넘은 공개치는 오늘 경로와 비교
+  const path = it.base.v + (it.target.v - it.base.v) * Math.min(1, Math.max(0, (tc - t0) / (t1 - t0)));
   const r = path > 0 ? it.latest.v / path : 1;
   return {s: r >= 0.9 ? "ok" : r >= 0.5 ? "warn" : "bad", r};
 }
