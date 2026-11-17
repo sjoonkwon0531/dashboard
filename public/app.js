@@ -341,7 +341,7 @@ async function cardLedger() {
       [S.later, "기준보다 늦어짐", S.later ? "bad" : ""], [S.earlier, "기준보다 앞당겨짐", ""], [S.open, "목표일 미공개·출처 상충", "idle"], [soon, "90일 안 목표일", ""], [S.complete + "/" + S.milestones, "완료/전체", ""]];
     body("ledger").innerHTML = `<div class="lg-strip">${it.map(([v, l, c]) => `<span class="${c}"><b class="num">${v}</b>${esc(l)}</span>`).join("")}</div>
       <p class="read">${esc(L.sites.map(s => s.name).join(", "))}의 이정표를 처음 약속한 날짜(2026-06-29 기준)와 함께 기록한 원장입니다.</p>
-      ${metaLine([`원장 기준일 ${esc(L.asof)}`, "v2 시험 화면"])}`;
+      ${metaLine([`원장 기준일 ${esc(L.asof)}`])}`;
   } catch (e) { fail("ledger", "일정 원장", e); }
 }
 
