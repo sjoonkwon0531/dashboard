@@ -1,29 +1,29 @@
 :root{
-  --bg:#F3F6F7; --surface:#FFFFFF; --sunk:#E8EEF0; --line:#D3DCE0;
-  --ink:#13212A; --ink-2:#4A5A63; --ink-3:#77878F;
-  --accent:#0B6A86; --accent-soft:#DCEEF3;
-  --ok:#2C7A4B; --ok-soft:#E1F1E7;
-  --warn:#A86A12; --warn-soft:#F7ECD8;
-  --bad:#B4371A; --bad-soft:#F7E1DA;
-  --idle:#6B7A82; --idle-soft:#E6EBED;
-  --lamp-off:#D7DFE3;
+  --bg:#f4f4f4; --surface:#ffffff; --sunk:#f4f4f4; --line:#e0e0e0;
+  --ink:#161616; --ink-2:#525252; --ink-3:#6f6f6f;
+  --accent:#0f62fe; --accent-soft:#edf5ff;
+  --ok:#198038; --ok-soft:#defbe6;
+  --warn:#8e6a00; --warn-soft:#fcf4d6;
+  --bad:#da1e28; --bad-soft:#fff1f1;
+  --idle:#6f6f6f; --idle-soft:#e8e8e8;
+  --lamp-off:#e0e0e0;
   --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0E1418; --surface:#151E23; --sunk:#1B262C; --line:#2A3840;
-  --ink:#E2EAEE; --ink-2:#A9B8BF; --ink-3:#7E8F97;
-  --accent:#4FB3CF; --accent-soft:#16323B;
-  --ok:#5FBF85; --ok-soft:#173022; --warn:#E0A54A; --warn-soft:#3A2C14;
-  --bad:#EE7A5C; --bad-soft:#3D1E16; --idle:#8D9CA3; --idle-soft:#222D33;
-  --lamp-off:#26333A; color-scheme:dark}}
+  --bg:#161616; --surface:#262626; --sunk:#1f1f1f; --line:#393939;
+  --ink:#f4f4f4; --ink-2:#c6c6c6; --ink-3:#a8a8a8;
+  --accent:#78a9ff; --accent-soft:#001d6c;
+  --ok:#42be65; --ok-soft:#044317; --warn:#f1c21b; --warn-soft:#302400;
+  --bad:#ff8389; --bad-soft:#520408; --idle:#a8a8a8; --idle-soft:#393939;
+  --lamp-off:#393939; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0E1418; --surface:#151E23; --sunk:#1B262C; --line:#2A3840;
-  --ink:#E2EAEE; --ink-2:#A9B8BF; --ink-3:#7E8F97;
-  --accent:#4FB3CF; --accent-soft:#16323B;
-  --ok:#5FBF85; --ok-soft:#173022; --warn:#E0A54A; --warn-soft:#3A2C14;
-  --bad:#EE7A5C; --bad-soft:#3D1E16; --idle:#8D9CA3; --idle-soft:#222D33;
-  --lamp-off:#26333A; color-scheme:dark}
+  --bg:#161616; --surface:#262626; --sunk:#1f1f1f; --line:#393939;
+  --ink:#f4f4f4; --ink-2:#c6c6c6; --ink-3:#a8a8a8;
+  --accent:#78a9ff; --accent-soft:#001d6c;
+  --ok:#42be65; --ok-soft:#044317; --warn:#f1c21b; --warn-soft:#302400;
+  --bad:#ff8389; --bad-soft:#520408; --idle:#a8a8a8; --idle-soft:#393939;
+  --lamp-off:#393939; color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
@@ -161,3 +161,9 @@ footer p{margin:4px 0}
 .lg-strip span{display:inline-flex;align-items:baseline;gap:6px;background:var(--sunk);border-radius:8px;padding:6px 10px;font-size:12.5px;color:var(--ink-2)}
 .lg-strip b{font-size:20px;color:var(--ink)}
 .lg-strip .bad b{color:var(--bad)} .lg-strip .warn b{color:var(--warn)} .lg-strip .idle b{color:var(--idle)}
+
+/* Carbon 형태(메가프로젝트 모니터와 같은 규칙) */
+.card,.lamp,.chip,.lg-strip span{border-radius:0}
+.card{border-top:3px solid var(--ink)}
+.card h2{font-weight:600}
+body{margin:0}
