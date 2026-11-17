@@ -268,7 +268,7 @@ async function cardPhysai() {
     if (b && b.summary) {
       const cur = b.summary || [];
       const read = cur.reduce((a, s) => a + (s.read || 0), 0), own = cur.reduce((a, s) => a + (s.data_own || 0), 0);
-      if (read) clause = `입찰 첨부를 읽은 <b class="num">${fmt(read)}</b>건 가운데 데이터 소유·반출 제한 문구가 걸린 것은 <b class="num">${fmt(own)}</b>건(${(own / read * 100).toFixed(1)}%)입니다. 낱말로 찾은 값이라 운영자 검토 전입니다.`;
+      if (read) clause = `입찰 첨부를 읽은 <b class="num">${fmt(read)}</b>건 가운데 운용 데이터의 소유권을 발주기관에 두거나 외부 반출을 막는 조항은 <b class="num">${fmt(own)}</b>건(${(own / read * 100).toFixed(1)}%)입니다. 규칙 ${b.rules_ver || ""}판(보안 표준 문구 제외), 지표 정의는 운영자 검토 전입니다.`;
     }
     body("physai").innerHTML = `${paceHtml}
       <div><div class="big num">${fmt(nY)}건</div><div class="sub">${esc(yr)}년 나라장터 로봇 관련 계약 · ${fmt(aY, 0)}억원</div></div>
