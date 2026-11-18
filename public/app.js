@@ -265,10 +265,14 @@ async function cardPhysai() {
     const ytd = (pr.summary || []).filter(s => s.month.startsWith(yr));
     const nY = ytd.reduce((a, s) => a + s.n, 0), aY = ytd.reduce((a, s) => a + s.amount_eok, 0);
     let clause = "";
-    if (b && b.summary) {
-      const cur = b.summary || [];
-      const read = cur.reduce((a, s) => a + (s.read || 0), 0), own = cur.reduce((a, s) => a + (s.data_own || 0), 0);
-      if (read) clause = `입찰 첨부를 읽은 <b class="num">${fmt(read)}</b>건 가운데 운용 데이터의 소유권을 발주기관에 두거나 외부 반출을 막는 조항은 <b class="num">${fmt(own)}</b>건(${(own / read * 100).toFixed(1)}%)입니다. 규칙 ${b.rules_ver || ""}판(보안 표준 문구 제외), 지표 정의는 운영자 검토 전입니다.`;
+    if (b && b.items) {
+      // 메가프로젝트 모니터 피지컬 AI 페이지와 같은 정의: 사업 단위(재공고 합침), 로봇 완제품 구매 사업 중 데이터 소유·반출 제한 조항
+      const key = i => (i.name || "").replace(/\s+|\(.*?\)|\[.*?\]|재공고|긴급|_?PA\d+|입찰 ?공고/g, "") + "|" + (i.buyer || "");
+      const skip = new Set(b.skip_tags || []), BUY = new Set(["humanoid", "industrial", "service", "medical"]);
+      const core = b.items.filter(i => !skip.has(i.tag) && i.read && (b.rules_ver == null || i.rules_ver === b.rules_ver));
+      const buy = core.filter(i => i.kind === "물품" && BUY.has(i.tag));
+      const nB = new Set(buy.map(key)).size, nO = new Set(buy.filter(i => (i.hits || {}).data_own).map(key)).size;
+      if (nB) clause = `로봇 완제품을 사는 공공 사업 <b class="num">${fmt(nB)}</b>개 가운데 운용 데이터의 소유권을 발주기관에 두거나 외부 반출을 막는 조항이 공고 첨부에 있는 사업은 <b class="num">${fmt(nO)}</b>개입니다(규칙 판정, 공고 첨부 기준).`;
     }
     body("physai").innerHTML = `${paceHtml}
       <div><div class="big num">${fmt(nY)}건</div><div class="sub">${esc(yr)}년 나라장터 로봇 관련 계약 · ${fmt(aY, 0)}억원</div></div>
